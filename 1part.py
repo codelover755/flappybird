@@ -3,17 +3,38 @@ import random
 
 pygame.init()
 
+game_over = False
+
+font = pygame.font.SysFont("Bauhaus 93", 60)
+
 screen = pygame.display.set_mode((600,600))
 pygame.display.update()
 
 bg1 = pygame.image.load("background.png")
 bg = pygame.transform.scale(bg1,(600,600))
 gr = pygame.image.load("Ground.png")
+rs = pygame.image.load("Restart.png")
 
 v = 0
 fps = 75
 clock = pygame.time.Clock()
 
+score = 0
+pass_pipe = False
+
+class Button():
+    def __init__(self,x,y,image):
+        self.image = image
+        self.rect = self.image.get_rect()
+        self.rect = (x,y)
+    def draw(self):
+        action = False
+        pos = pygame.mouse.get_pos()
+        if self.rect.collidepoint(pos):
+            if pygame.mouse.get_pressed()[0] == 1:
+                action = True
+        screen.blit(self.image,(self.rect.x,self.rect.y))
+        return action
 
 class Bird(pygame.sprite.Sprite):
     def __init__(self,x,y):
@@ -58,6 +79,9 @@ pipe_gap = 200
 scroll_speed = 4
 pipe_frequency = 1500
 last_pipe = pygame.time.get_ticks() - pipe_frequency
+
+button = Button(300,300,rs)
+
 class Pipe(pygame.sprite.Sprite):
     def __init__(self,x,y,pos):
         pygame.sprite.Sprite.__init__(self)
@@ -76,6 +100,17 @@ class Pipe(pygame.sprite.Sprite):
 
 pipe_group = pygame.sprite.Group()
 
+def draw_text(text,font,colour,x,y):
+    img = font.render(text,True,colour)
+    screen.blit(img,(x,y))
+
+def reset_game():
+    global score
+    pipe_group.empty()
+    flappy.rect.x = 100
+    flappy.rect.y = 300
+    score = 0
+
 while True:
     clock.tick(fps)
 
@@ -84,17 +119,42 @@ while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
-    time_now = pygame.time.get_ticks()
-    if time_now - last_pipe > pipe_frequency:
-        pipe_height = random.randint(-150,150)
-        gp = Pipe(600,300 + pipe_height,1)
-        gp1 = Pipe(600,300 + pipe_height,-1) 
-        pipe_group.add(gp)
-        pipe_group.add(gp1)  
-        last_pipe = time_now
-        pygame.display.update()
+    if game_over == False:
+        time_now = pygame.time.get_ticks()
+        if time_now - last_pipe > pipe_frequency:
+            pipe_height = random.randint(-150,150)
+            gp = Pipe(600,300 + pipe_height,1)
+            gp1 = Pipe(600,300 + pipe_height,-1) 
+            pipe_group.add(gp)
+            pipe_group.add(gp1)  
+            last_pipe = time_now
+            pygame.display.update()
 
     screen.blit(gr,(v,570))
+    
+    #checking score
+    if len(pipe_group) > 0:
+        if bird_group.sprites()[0].rect.left > pipe_group.sprites()[0].rect.left \
+            and bird_group.sprites()[0].rect.right < pipe_group.sprites()[0].rect.right and pass_pipe == False:
+            pass_pipe = True
+        if pass_pipe == True:
+            if bird_group.sprites()[0].rect.left > pipe_group.sprites()[0].rect.right:
+                score += 1
+                pass_pipe = False
+
+    draw_text(str(score),font,"orange",10,10)
+
+    if pygame.sprite.groupcollide(bird_group,pipe_group,False,False):
+        game_over = True
+    if flappy.rect.bottom >= 570:
+        game_over = True
+    if game_over == True:
+        screen.blit(rs,(250,250))
+        if button.draw() == True:
+            game_over = False
+            reset_game()
+                            
+
     v = v - 2
     if v < -200:
         v = 0
